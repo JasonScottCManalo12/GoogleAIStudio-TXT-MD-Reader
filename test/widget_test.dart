@@ -9,7 +9,8 @@ void main() {
     await tester.pumpWidget(const NotepadApp());
 
     expect(find.text('Notepad'), findsOneWidget);
-    expect(find.text('Open file'), findsOneWidget);\n    expect(find.byTooltip('Open file'), findsOneWidget);
+    expect(find.text('Open file'), findsOneWidget);
+    expect(find.byTooltip('Open file'), findsOneWidget);
     expect(find.text('New text document'), findsOneWidget);
     expect(find.text('New Markdown document'), findsOneWidget);
   });
