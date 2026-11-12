@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#13b8ff"/><stop offset=".48" stop-color="#0757e8"/><stop offset="1" stop-color="#071c78"/></linearGradient>
+ <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#dce8ff"/></linearGradient>
+ <linearGradient id="blue" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#168bff"/><stop offset="1" stop-color="#0646d9"/></linearGradient>
+ <linearGradient id="purple" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#923cff"/><stop offset="1" stop-color="#5111c7"/></linearGradient>
+ <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feGaussianBlur stdDeviation="9"/></filter>
+</defs>
+<rect width="512" height="512" rx="112" fill="url(#bg)"/>
+<path d="M0 350 Q150 260 270 350 T512 300 V512 H0Z" fill="#04175f" opacity=".35"/>
+<ellipse cx="256" cy="405" rx="205" ry="30" fill="#00134e" opacity=".45" filter="url(#shadow)"/>
+<!-- open book -->
+<path d="M58 340 Q155 310 256 369 Q357 310 454 340 L454 415 Q350 386 256 438 Q162 386 58 415Z" fill="#f9fbff"/>
+<path d="M58 340 Q155 310 256 369 V438 Q162 386 58 415Z" fill="#dce8ff"/>
+<path d="M454 340 Q357 310 256 369 V438 Q350 386 454 415Z" fill="#fff"/>
+<path d="M58 340 Q155 310 256 369 Q357 310 454 340" fill="none" stroke="#1597ff" stroke-width="10"/>
+<path d="M58 415 Q162 386 256 438 Q350 386 454 415" fill="none" stroke="#0875ed" stroke-width="9"/>
+<path d="M256 369 V438" stroke="#9ab8ed" stroke-width="4"/>
+<!-- document -->
+<path d="M139 65 H321 L383 127 V335 Q383 350 368 350 H139 Q124 350 124 335 V80 Q124 65 139 65Z" fill="#06194f" opacity=".28" filter="url(#shadow)"/>
+<path d="M139 55 H318 L374 111 V322 Q374 337 359 337 H139 Q124 337 124 322 V70 Q124 55 139 55Z" fill="url(#paper)"/>
+<path d="M318 55 V96 Q318 111 333 111 H374" fill="#c6d8fa"/>
+<rect x="154" y="130" width="178" height="72" rx="18" fill="url(#blue)"/>
+<text x="243" y="179" text-anchor="middle" font-family="Arial,sans-serif" font-size="48" font-weight="800" fill="#fff">TXT</text>
+<rect x="154" y="218" width="178" height="72" rx="18" fill="url(#purple)"/>
+<text x="243" y="266" text-anchor="middle" font-family="Arial,sans-serif" font-size="43" font-weight="800" fill="#fff">MD</text>
+<path d="M347 157 h1 M347 157" stroke="#fff"/>
+<rect x="344" y="148" width="12" height="12" rx="6" fill="#0757e8"/>
+<path d="M348 237 h1" stroke="#fff"/>
+<path d="M344 236 l6 6 6-6" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
