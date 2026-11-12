@@ -58,7 +58,10 @@ class _EditorScreenState extends State<EditorScreen> {
           ],
         ),
       );
-      if (action == true && mounted) {\n        setState(() => _saving = false);\n        return _save(saveAs: true);\n      }
+      if (action == true && mounted) {
+        setState(() => _saving = false);
+        return _save(saveAs: true);
+      }
       return false;
     } finally {
       if (mounted) setState(() => _saving = false);
