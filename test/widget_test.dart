@@ -7,7 +7,8 @@ void main() {
 
   testWidgets('shows the workspace picker on first launch', (tester) async {
     await tester.pumpWidget(const NotepadApp());
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Notepad'), findsOneWidget);
     expect(find.text('A calmer place for your notes'), findsOneWidget);
