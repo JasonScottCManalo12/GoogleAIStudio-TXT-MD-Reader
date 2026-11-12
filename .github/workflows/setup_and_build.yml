@@ -34,8 +34,17 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Prepare launcher icon
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin
+          rsvg-convert -w 512 -h 512 assets/txt_md_launcher.svg -o assets/txt_md_launcher.png
+
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Generate Android launcher icons
+        run: dart run flutter_launcher_icons
 
       - name: Format Dart sources
         run: dart format lib test
