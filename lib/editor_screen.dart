@@ -1,206 +1,172 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 import 'note_service.dart';
 
 class EditorScreen extends StatefulWidget {
-  final String folderPath;
-  final NoteItem? note;
+  final TextDocument document;
 
-  const EditorScreen({super.key, required this.folderPath, this.note});
+  const EditorScreen({super.key, required this.document});
 
   @override
   State<EditorScreen> createState() => _EditorScreenState();
 }
 
 class _EditorScreenState extends State<EditorScreen> {
-  final NoteService _noteService = NoteService();
-  late final TextEditingController _titleController;
+  final NoteService _service = NoteService();
+  late TextDocument _document;
   late final TextEditingController _contentController;
-
-  bool _isMarkdown = false;
-  bool _isPreviewMode = false;
-  bool _isSaving = false;
-  bool _hasUnsavedChanges = false;
-  String? _currentPath;
-  Timer? _debounceTimer;
-
-  final TextStyle _editorFont = const TextStyle(fontFamily: 'monospace', fontSize: 15, height: 1.5);
+  bool _dirty = false;
+  bool _saving = false;
+  bool _preview = false;
 
   @override
   void initState() {
     super.initState();
-    _isMarkdown = widget.note?.isMarkdown ?? false;
-    _currentPath = widget.note?.path;
-    _titleController = TextEditingController(text: widget.note?.displayTitle ?? 'untitled');
-    _contentController = TextEditingController(text: widget.note?.content ?? '');
-    _titleController.addListener(_onChanged);
-    _contentController.addListener(_onChanged);
+    _document = widget.document;
+    _contentController = TextEditingController(text: _document.content)
+      ..addListener(_handleEdit);
   }
 
-  void _onChanged() {
-    if (!mounted) return;
-    setState(() => _hasUnsavedChanges = true);
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 700), _saveNote);
+  void _handleEdit() {
+    if (!_dirty) setState(() => _dirty = true);
   }
 
-  Future<void> _saveNote() async {
-    if (_isSaving) return;
-    setState(() {
-      _isSaving = true;
-      _hasUnsavedChanges = false;
-    });
+  Future<bool> _save({bool saveAs = false}) async {
+    if (_saving) return false;
+    setState(() => _saving = true);
     try {
-      final file = await _noteService.saveNote(
-        folderPath: widget.folderPath,
-        title: _titleController.text,
-        isMarkdown: _isMarkdown,
-        content: _contentController.text,
-        previousPath: _currentPath,
-      );
-      if (!mounted) return;
-      setState(() => _currentPath = file.path);
+      final result = saveAs
+          ? await _service.saveAs(_document, _contentController.text)
+          : await _service.save(_document, _contentController.text);
+      if (result == null) return false;
+      setState(() {
+        _document = result;
+        _dirty = false;
+      });
+      return true;
     } catch (error) {
-      if (!mounted) return;
-      setState(() => _hasUnsavedChanges = true);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save note: $error')));
+      if (!mounted) return false;
+      final action = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Could not save this file'),
+          content: Text('$error\n\nSave a new copy instead?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save As')),
+          ],
+        ),
+      );
+      if (action == true && mounted) return _save(saveAs: true);
+      return false;
     } finally {
-      if (mounted) setState(() => _isSaving = false);
+      if (mounted) setState(() => _saving = false);
     }
   }
 
-  Future<bool> _confirmDiscardIfNeeded() async {
-    if (!_hasUnsavedChanges && !_isSaving) return true;
-    final action = await showDialog<String>(
+  Future<bool> _confirmLeave() async {
+    if (!_dirty) return true;
+    final choice = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Unsaved changes'),
-        content: const Text('Save this note before leaving?'),
+        content: Text('Save changes to ${_document.name} before closing?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, 'discard'), child: const Text('Discard')),
-          FilledButton(onPressed: () => Navigator.pop(context, 'keep-editing'), child: const Text('Keep editing')),
-          TextButton(onPressed: () => Navigator.pop(context, 'save'), child: const Text('Save')),
+          TextButton(onPressed: () => Navigator.pop(context, 'stay'), child: const Text('Keep editing')),
+          FilledButton(onPressed: () => Navigator.pop(context, 'save'), child: const Text('Save')),
         ],
       ),
     );
-    if (action == 'save') {
-      await _saveNote();
-      return true;
-    }
-    return action == 'discard';
-  }
-
-  Future<void> _deleteNote() async {
-    if (_currentPath == null) return;
-    final shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete note?'),
-        content: Text('“${_titleController.text.trim().isEmpty ? 'untitled' : _titleController.text.trim()}” will be removed from this folder.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton.tonal(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
-        ],
-      ),
-    );
-    if (shouldDelete != true) return;
-    await _noteService.deleteNote(_currentPath!);
-    if (mounted) Navigator.pop(context);
-  }
-
-  void _toggleMarkdown() {
-    setState(() {
-      _isMarkdown = !_isMarkdown;
-      if (!_isMarkdown) _isPreviewMode = false;
-      _hasUnsavedChanges = true;
-    });
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 100), _saveNote);
+    if (choice == 'discard') return true;
+    if (choice == 'save') return _save();
+    return false;
   }
 
   @override
   void dispose() {
-    _debounceTimer?.cancel();
-    _titleController.dispose();
-    _contentController.dispose();
+    _contentController
+      ..removeListener(_handleEdit)
+      ..dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMarkdown = _document.isMarkdown;
     return WillPopScope(
-      onWillPop: _confirmDiscardIfNeeded,
+      onWillPop: _confirmLeave,
       child: Scaffold(
         appBar: AppBar(
-          titleSpacing: 0,
-          leading: IconButton(tooltip: 'Back', icon: const Icon(Icons.arrow_back_rounded), onPressed: () async { if (await _confirmDiscardIfNeeded() && mounted) Navigator.pop(context); }),
-          title: TextField(
-            controller: _titleController,
-            textInputAction: TextInputAction.done,
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            decoration: const InputDecoration(hintText: 'Note title'),
+          leading: IconButton(
+            tooltip: 'Close document',
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () async {
+              if (await _confirmLeave() && mounted) Navigator.pop(context);
+            },
+          ),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(_document.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(_dirty ? 'Unsaved changes' : 'Saved', style: theme.textTheme.labelSmall),
+            ],
           ),
           actions: [
-            if (_isSaving)
-              const Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))))
-            else
-              Icon(_hasUnsavedChanges ? Icons.circle : Icons.cloud_done_outlined, size: 12, color: _hasUnsavedChanges ? theme.colorScheme.primary : theme.colorScheme.tertiary),
-            IconButton(tooltip: 'Save now', onPressed: _isSaving ? null : _saveNote, icon: const Icon(Icons.save_outlined)),
-            PopupMenuButton<String>(
-              tooltip: 'More actions',
-              onSelected: (value) {
-                if (value == 'delete') {
-                  _deleteNote();
-                }
-              },
-              itemBuilder: (_) => [
-                PopupMenuItem(value: 'delete', enabled: _currentPath != null, child: const ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.delete_outline_rounded), title: Text('Delete note'))),
-              ],
+            if (isMarkdown)
+              IconButton(
+                tooltip: _preview ? 'Edit Markdown' : 'Preview Markdown',
+                onPressed: () => setState(() => _preview = !_preview),
+                icon: Icon(_preview ? Icons.edit_outlined : Icons.visibility_outlined),
+              ),
+            IconButton(
+              tooltip: 'Save As',
+              onPressed: _saving ? null : () => _save(saveAs: true),
+              icon: const Icon(Icons.save_as_outlined),
+            ),
+            IconButton(
+              tooltip: 'Save',
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.save_outlined),
             ),
           ],
         ),
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-              child: Row(
-                children: [
-                  SegmentedButton<bool>(
-                    segments: const [ButtonSegment(value: false, icon: Icon(Icons.edit_outlined), label: Text('Edit')), ButtonSegment(value: true, icon: Icon(Icons.visibility_outlined), label: Text('Preview'))],
-                    selected: {_isPreviewMode},
-                    onSelectionChanged: _isMarkdown ? (selection) => setState(() => _isPreviewMode = selection.first) : null,
+        body: _preview && isMarkdown
+            ? Markdown(data: _contentController.text, selectable: true, padding: const EdgeInsets.all(20))
+            : Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: TextField(
+                  controller: _contentController,
+                  expands: true,
+                  maxLines: null,
+                  minLines: null,
+                  autofocus: true,
+                  keyboardType: TextInputType.multiline,
+                  textCapitalization: TextCapitalization.sentences,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 15, height: 1.5),
+                  decoration: InputDecoration(
+                    hintText: 'Start typing…',
+                    alignLabelWithHint: true,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.all(14),
                   ),
-                  const Spacer(),
-                  Text(_isMarkdown ? 'Markdown' : 'Plain text', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                  const SizedBox(width: 6),
-                  IconButton(tooltip: 'Switch file type', onPressed: _toggleMarkdown, icon: const Icon(Icons.swap_horiz_rounded)),
-                ],
+                ),
               ),
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Text('${_contentController.text.length} characters', style: theme.textTheme.labelSmall),
+                const Spacer(),
+                Text(isMarkdown ? 'Markdown' : 'Plain text', style: theme.textTheme.labelSmall),
+              ],
             ),
-            Expanded(
-              child: _isPreviewMode
-                  ? Markdown(data: _contentController.text, padding: const EdgeInsets.fromLTRB(20, 8, 20, 40), selectable: true, styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(p: _editorFont, code: _editorFont.copyWith(backgroundColor: theme.colorScheme.surfaceContainerHighest)))
-                  : Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                      child: TextField(
-                        controller: _contentController,
-                        expands: true,
-                        maxLines: null,
-                        minLines: null,
-                        autofocus: widget.note == null,
-                        keyboardType: TextInputType.multiline,
-                        textCapitalization: TextCapitalization.sentences,
-                        style: _editorFont,
-                        decoration: InputDecoration(hintText: 'Start writing…', hintStyle: _editorFont.copyWith(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: .6)), filled: true, fillColor: theme.colorScheme.surface, border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none), contentPadding: const EdgeInsets.all(18)),
-                      ),
-                    ),
-            ),
-            SafeArea(top: false, child: Padding(padding: const EdgeInsets.fromLTRB(20, 8, 20, 10), child: Row(children: [Text('${_contentController.text.length} characters', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)), const SizedBox(width: 12), Text('${_contentController.text.split(RegExp(r'\s+')).where((word) => word.isNotEmpty).length} words', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)), const Spacer(), Text(_hasUnsavedChanges ? 'Saving automatically…' : 'All changes saved', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant))]))),
-          ],
+          ),
         ),
       ),
     );
