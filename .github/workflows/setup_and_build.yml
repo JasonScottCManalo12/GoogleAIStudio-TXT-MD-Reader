@@ -6,6 +6,7 @@ on:
       - main
       - master
       - 'manus/**'
+      - 'feature/**'
   pull_request:
   workflow_dispatch:
 
