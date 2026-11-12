@@ -1,39 +1,37 @@
 # Notepad
 
-A focused Flutter app for browsing, writing, and previewing `.txt` and `.md` files in a folder you choose. It is designed to feel lightweight without sacrificing useful editing safeguards.
+A lightweight, file-first Flutter editor for ordinary `.txt` and `.md` documents.
 
-## What changed
+## Everyday workflow
 
-- Material 3 interface with light/dark system themes and a clearer visual hierarchy.
-- Workspace header with note count, folder switching, pull-to-refresh, and sort controls.
-- Fast search across note titles and content.
-- Better empty, loading, error, and no-results states.
-- Note cards with file-type badges, previews, and readable timestamps.
-- Editor with explicit save, automatic save, save status, character/word counts, and a Markdown preview.
-- Safe filename cleanup for characters that are invalid on common filesystems.
-- Renaming and switching between `.txt` and `.md` moves the existing note instead of leaving duplicates behind.
-- Delete action with confirmation.
-- Fixed the generated starter widget test and added a meaningful launch smoke test.
+- **Open file** to choose an existing TXT or Markdown document from the device.
+- **New text document** or **New Markdown document** to start from a blank file.
+- Edit in a simple monospaced text area.
+- **Save** to write the current document, or **Save As** to choose another destination/name.
+- Markdown documents can switch between source editing and rendered preview.
+- Unsaved edits are protected by a close confirmation.
 
-## Run locally
+The app is designed around individual files, not a mandatory workspace folder or a notes database. Files remain ordinary documents that can be opened by other editors.
+
+## Platform save behavior
+
+On desktop platforms, an opened file is saved back to its selected path when possible. On Android, the system file picker may provide a temporary cached copy rather than a writable handle to the original document. To avoid silently overwriting only that temporary copy, Save uses the Android system save dialog; choose the destination for the saved document.
+
+## Build and test
 
 Install Flutter 3.x, then run:
 
 ```bash
 flutter pub get
+dart format --output=none --set-exit-if-changed .
+flutter analyze
 flutter test
-flutter run
+flutter build apk --release
 ```
-
-On Android, choose a directory with the folder button. The app reads and writes only `.txt` and `.md` files in that workspace.
 
 ## Project structure
 
-- `lib/main.dart` — Material 3 shell, workspace browser, search, sorting, and states.
-- `lib/editor_screen.dart` — note editor, Markdown preview, autosave, rename, and delete flow.
-- `lib/note_service.dart` — folder preferences, file discovery, safe filenames, and persistence.
-- `test/widget_test.dart` — launch smoke test.
-
-## Notes
-
-The app intentionally uses ordinary files rather than a database, so notes remain portable and can be opened by other tools. File errors are surfaced to the user instead of being silently ignored.
+- `lib/main.dart` — file-first home screen with Open and New actions.
+- `lib/editor_screen.dart` — text editor, save/save-as, unsaved-change protection, and Markdown preview.
+- `lib/note_service.dart` — TXT/MD file selection and persistence.
+- `test/widget_test.dart` — app shell and new-document smoke tests.

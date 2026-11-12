@@ -6,6 +6,7 @@ on:
       - main
       - master
       - 'manus/**'
+      - 'feature/**'
   pull_request:
   workflow_dispatch:
 
@@ -33,8 +34,17 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Prepare launcher icon
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin
+          rsvg-convert -w 512 -h 512 assets/txt_md_launcher.svg -o assets/txt_md_launcher.png
+
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Generate Android launcher icons
+        run: dart run flutter_launcher_icons
 
       - name: Format Dart sources
         run: dart format lib test
@@ -46,7 +56,14 @@ jobs:
         run: flutter test --coverage
 
       - name: Build release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --split-per-abi
+
+      - name: Rename release APKs
+        run: |
+          cd build/app/outputs/flutter-apk
+          mv app-arm64-v8a-release.apk TXT-MD-Document-Reader-arm64-v8a.apk
+          mv app-armeabi-v7a-release.apk TXT-MD-Document-Reader-armeabi-v7a.apk
+          mv app-x86_64-release.apk TXT-MD-Document-Reader-x86_64.apk
 
       - name: Upload test coverage
         uses: actions/upload-artifact@v4
@@ -57,5 +74,8 @@ jobs:
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: notepad-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: notepad-release-apks
+          path: |
+            build/app/outputs/flutter-apk/TXT-MD-Document-Reader-arm64-v8a.apk
+            build/app/outputs/flutter-apk/TXT-MD-Document-Reader-armeabi-v7a.apk
+            build/app/outputs/flutter-apk/TXT-MD-Document-Reader-x86_64.apk
