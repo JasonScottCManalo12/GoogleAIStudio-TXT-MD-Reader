@@ -29,7 +29,7 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   void _handleEdit() {
-    if (!_dirty) setState(() => _dirty = true);
+    setState(() => _dirty = true);
   }
 
   Future<bool> _save({bool saveAs = false}) async {
@@ -58,7 +58,7 @@ class _EditorScreenState extends State<EditorScreen> {
           ],
         ),
       );
-      if (action == true && mounted) return _save(saveAs: true);
+      if (action == true && mounted) {\n        setState(() => _saving = false);\n        return _save(saveAs: true);\n      }
       return false;
     } finally {
       if (mounted) setState(() => _saving = false);
