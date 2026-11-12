@@ -187,7 +187,7 @@ class _EditorScreenState extends State<EditorScreen> {
                         keyboardType: TextInputType.multiline,
                         textCapitalization: TextCapitalization.sentences,
                         style: _editorFont,
-                        decoration: InputDecoration(hintText: 'Start writing…', hintStyle: _editorFont.copyWith(color: theme.colorScheme.onSurfaceVariant.withOpacity(.6)), filled: true, fillColor: theme.colorScheme.surface, border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none), contentPadding: const EdgeInsets.all(18)),
+                        decoration: InputDecoration(hintText: 'Start writing…', hintStyle: _editorFont.copyWith(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: .6)), filled: true, fillColor: theme.colorScheme.surface, border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none), contentPadding: const EdgeInsets.all(18)),
                       ),
                     ),
             ),
