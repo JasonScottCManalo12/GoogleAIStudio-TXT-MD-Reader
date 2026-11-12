@@ -64,7 +64,7 @@ class NoteService {
     );
     if (savedPath == null) return null;
 
-    final savedName = savedPath.replaceAll('\\', '/').split('/').last;
+    final savedName = Platform.isAndroid\n        ? suggestedName\n        : savedPath.replaceAll('\\', '/').split('/').last;
     return TextDocument(
       name: _ensureSupportedExtension(savedName),
       content: content,
