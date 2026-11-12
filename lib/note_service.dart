@@ -31,7 +31,7 @@ class NoteService {
     return TextDocument(
       name: selected.name,
       content: utf8.decode(bytes, allowMalformed: true),
-      path: selected.path,
+      path: Platform.isAndroid ? null : selected.path,
     );
   }
 
