@@ -74,19 +74,23 @@ class _EditorScreenState extends State<EditorScreen> {
 
   Future<bool> _confirmDiscardIfNeeded() async {
     if (!_hasUnsavedChanges && !_isSaving) return true;
-    final discard = await showDialog<bool>(
+    final action = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Unsaved changes'),
         content: const Text('Save this note before leaving?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Discard')),
-          FilledButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep editing')),
-          TextButton(onPressed: () async { await _saveNote(); if (context.mounted) Navigator.pop(context, true); }, child: const Text('Save')),
+          TextButton(onPressed: () => Navigator.pop(context, 'discard'), child: const Text('Discard')),
+          FilledButton(onPressed: () => Navigator.pop(context, 'keep-editing'), child: const Text('Keep editing')),
+          TextButton(onPressed: () => Navigator.pop(context, 'save'), child: const Text('Save')),
         ],
       ),
     );
-    return discard ?? false;
+    if (action == 'save') {
+      await _saveNote();
+      return true;
+    }
+    return action == 'discard';
   }
 
   Future<void> _deleteNote() async {
@@ -148,7 +152,11 @@ class _EditorScreenState extends State<EditorScreen> {
             IconButton(tooltip: 'Save now', onPressed: _isSaving ? null : _saveNote, icon: const Icon(Icons.save_outlined)),
             PopupMenuButton<String>(
               tooltip: 'More actions',
-              onSelected: (value) { if (value == 'delete') _deleteNote(); },
+              onSelected: (value) {
+                if (value == 'delete') {
+                  _deleteNote();
+                }
+              },
               itemBuilder: (_) => [
                 PopupMenuItem(value: 'delete', enabled: _currentPath != null, child: const ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.delete_outline_rounded), title: Text('Delete note'))),
               ],
