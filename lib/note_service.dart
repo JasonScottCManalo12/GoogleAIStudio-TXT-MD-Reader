@@ -1,102 +1,81 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-class NoteItem {
-  final String title;
+class TextDocument {
+  final String name;
   final String content;
-  final String path;
-  final DateTime lastModified;
-  final bool isMarkdown;
+  final String? path;
 
-  const NoteItem({
-    required this.title,
-    required this.content,
-    required this.path,
-    required this.lastModified,
-    required this.isMarkdown,
-  });
+  const TextDocument({required this.name, required this.content, this.path});
 
-  String get displayTitle {
-    final extension = isMarkdown ? '.md' : '.txt';
-    return title.toLowerCase().endsWith(extension) ? title.substring(0, title.length - extension.length) : title;
-  }
+  bool get isMarkdown => name.toLowerCase().endsWith('.md');
 }
 
 class NoteService {
-  static const String _folderKey = 'selected_workspace_folder';
-  static final RegExp _invalidFilenameCharacters = RegExp(r'[\\/:*?"<>|]');
+  Future<TextDocument?> openDocument() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['txt', 'md'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return null;
 
-  Future<String?> getSavedFolderPath() async {
-    final prefs = await SharedPreferences.getInstance();
-    final path = prefs.getString(_folderKey);
-    if (path == null || path.trim().isEmpty) return null;
-    return path;
-  }
-
-  Future<String?> pickAndSaveDirectory() async {
-    final selectedDirectory = await FilePicker.platform.getDirectoryPath();
-    if (selectedDirectory == null) return null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_folderKey, selectedDirectory);
-    return selectedDirectory;
-  }
-
-  Future<List<NoteItem>> loadNotesFromDirectory(String folderPath) async {
-    final dir = Directory(folderPath);
-    if (!await dir.exists()) return [];
-
-    final notes = <NoteItem>[];
-    await for (final entity in dir.list(followLinks: false)) {
-      if (entity is! File) continue;
-      final lowerPath = entity.path.toLowerCase();
-      final isMarkdown = lowerPath.endsWith('.md');
-      if (!isMarkdown && !lowerPath.endsWith('.txt')) continue;
-
-      final content = await entity.readAsString();
-      final stat = await entity.stat();
-      final fileName = entity.uri.pathSegments.last;
-      notes.add(NoteItem(title: fileName, content: content, path: entity.path, lastModified: stat.modified, isMarkdown: isMarkdown));
+    final selected = result.files.single;
+    final bytes = selected.bytes;
+    if (bytes == null) {
+      throw const FormatException('The selected file could not be read.');
     }
-
-    notes.sort((a, b) => b.lastModified.compareTo(a.lastModified));
-    return notes;
+    return TextDocument(
+      name: selected.name,
+      content: utf8.decode(bytes, allowMalformed: true),
+      path: selected.path,
+    );
   }
 
-  String sanitizeTitle(String value) {
-    var title = value.trim().replaceAll(_invalidFilenameCharacters, '-');
-    title = title.replaceAll(RegExp(r'\s+'), ' ');
-    title = title.replaceAll(RegExp(r'[. ]+$'), '');
-    return title.isEmpty ? 'untitled' : title;
+  TextDocument newDocument({bool markdown = false}) {
+    return TextDocument(
+      name: markdown ? 'Untitled.md' : 'Untitled.txt',
+      content: '',
+    );
   }
 
-  String fileNameFor({required String title, required bool isMarkdown}) {
-    final cleanTitle = sanitizeTitle(title).replaceFirst(RegExp(r'\.(md|txt)$', caseSensitive: false), '');
-    return '$cleanTitle.${isMarkdown ? 'md' : 'txt'}';
-  }
-
-  Future<File> saveNote({
-    required String folderPath,
-    required String title,
-    required bool isMarkdown,
-    required String content,
-    String? previousPath,
-  }) async {
-    final fileName = fileNameFor(title: title, isMarkdown: isMarkdown);
-    final filePath = '$folderPath${Platform.pathSeparator}$fileName';
-    final file = File(filePath);
-    await file.writeAsString(content, flush: true);
-
-    if (previousPath != null && previousPath != file.path) {
-      final previousFile = File(previousPath);
-      if (await previousFile.exists()) await previousFile.delete();
+  Future<TextDocument?> save(TextDocument document, String content) async {
+    final path = document.path;
+    if (path == null || path.trim().isEmpty) {
+      return saveAs(document, content);
     }
-    return file;
-  }
-
-  Future<void> deleteNote(String path) async {
     final file = File(path);
-    if (await file.exists()) await file.delete();
+    await file.writeAsString(content, encoding: utf8, flush: true);
+    return TextDocument(name: document.name, content: content, path: path);
+  }
+
+  Future<TextDocument?> saveAs(TextDocument document, String content) async {
+    final suggestedName = _ensureSupportedExtension(document.name);
+    final bytes = Uint8List.fromList(utf8.encode(content));
+    final savedPath = await FilePicker.platform.saveFile(
+      dialogTitle: 'Save text document',
+      fileName: suggestedName,
+      type: FileType.custom,
+      allowedExtensions: const ['txt', 'md'],
+      bytes: bytes,
+    );
+    if (savedPath == null) return null;
+
+    final savedName = savedPath.replaceAll('\\', '/').split('/').last;
+    return TextDocument(
+      name: _ensureSupportedExtension(savedName),
+      content: content,
+      path: savedPath,
+    );
+  }
+
+  String _ensureSupportedExtension(String name) {
+    final trimmed = name.trim().isEmpty ? 'Untitled.txt' : name.trim();
+    final lower = trimmed.toLowerCase();
+    if (lower.endsWith('.txt') || lower.endsWith('.md')) return trimmed;
+    return '$trimmed.txt';
   }
 }
