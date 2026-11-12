@@ -68,7 +68,7 @@ class NoteService {
     return TextDocument(
       name: _ensureSupportedExtension(savedName),
       content: content,
-      path: savedPath,
+      path: Platform.isAndroid ? null : savedPath,
     );
   }
 
