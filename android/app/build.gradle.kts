@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "com.example.notepad_app"
-    compileSdk = flutter.compileSdkVersion
+    // file_picker's current Android dependencies require API 36 or newer.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
